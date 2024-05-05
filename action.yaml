@@ -1,0 +1,38 @@
+name: koumatsumoto/publish-npm-package
+description: A GitHub Action to publish npm packages.
+
+inputs:
+  version:
+    description: "Package version"
+    required: true
+  auth_token:
+    description: "An auth token to publish npm packages"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Publish a new package
+      shell: bash
+      run: npm version --no-commit-hooks --no-git-tag-version --allow-same-version ${{ inputs.version }} && npm publish --ignore-scripts
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.auth_token }}
+
+    - uses: koumatsumoto/get-npm-package-info-action@v1
+      id: package_info
+
+    - name: Create a results report
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ inputs.auth_token }}
+        script: |
+          const heading = 'New GitHub Packages'
+          const output = `
+            *New Version* 🤖 *${{ inputs.version }}*\n
+            Run command below to install newly published package.\n
+            \`npm install ${{ steps.package_info.outputs.package_name }}@${{ steps.package_info.outputs.package_version }}\`\n
+          `;
+          await core.summary
+            .addHeading(heading)
+            .addRaw(output)
+            .write()
